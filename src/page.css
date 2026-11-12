@@ -73,3 +73,15 @@ main.iss{max-width:1180px;margin:0 auto;padding:18px 14px 120px}
 #pdfsheet td.o{background:#F9ECE7!important}#pdfsheet td.c{background:#E2F3E8!important}
 #pdfsheet td.g{font-weight:700;text-align:center;vertical-align:middle;background:#E9EFE7!important}
 #pdfsheet .ft{display:flex;align-items:center;margin-top:14px}#pdfsheet .ft i{flex:1;height:3px;background:#5F7A61}#pdfsheet .ft b{background:#5F7A61;color:#fff;font-size:12px;padding:6px 12px}
+
+/* computer: use the full width from the left edge; "+ New issue" sits in the toolbar */
+.exbar .newb{display:none}
+.fab{right:14px}
+@media (min-width:761px){
+  main.iss{max-width:none;margin:0;padding:18px 24px 40px}
+  .fab{display:none}
+  .exbar .newb{display:inline-flex}
+  .kpis{max-width:640px}
+}
+.exbar .sep{width:1px;align-self:stretch;background:var(--edge);margin:0 2px}
+.exbar .btn.sm[aria-pressed=true]{background:var(--fl);color:#fff}

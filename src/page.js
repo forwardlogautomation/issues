@@ -49,7 +49,9 @@ function render() {
   h += '<div class="filters"><input type="search" id="q" placeholder="Search text or No." value="' + esc(S.q) + '" aria-label="Search">' +
     '<select id="fCat" aria-label="Category"><option value="">All categories</option>' + cats.map(function (c) { return '<option value="' + esc(c) + '"' + (c === S.cat ? ' selected' : '') + '>' + esc(c + (CAT_CN[c] ? ' ' + CAT_CN[c] : '')) + '</option>'; }).join('') + '</select>' +
     '<div class="fg"><span class="flbl">Language</span><div class="fseg" id="segLang">' + [['both', 'Both'], ['en', 'English'], ['cn', '中文']].map(function (l) { return '<button type="button" data-l="' + l[0] + '"' + (S.lang === l[0] ? ' class="on"' : '') + '>' + l[1] + '</button>'; }).join('') + '</div></div></div>';
-  h += '<div class="exbar"><button class="btn sm" type="button" id="bXlsx">Export Excel</button><button class="btn sm sec" type="button" id="bPdf">Export PDF</button><button class="btn sm sec" type="button" id="bDrive">Save to Google Drive</button>' +
+  h += '<div class="exbar"><button class="btn sm newb" type="button" id="bNew">+ New issue</button><span class="sep"></span>' +
+    '<button class="btn sm" type="button" id="bXlsx">Export Excel</button><button class="btn sm sec" type="button" id="bPdf">Export PDF</button><button class="btn sm sec" type="button" id="bDrive">Save to Google Drive</button>' +
+    '<span class="sep"></span><button class="btn sm sec" type="button" id="bHide" aria-pressed="false">Hide unticked</button><button class="btn sm sec" type="button" id="bInc">Tick all</button>' +
     '<span class="cnt" id="cnt"></span></div>';
   h += '<div id="list" class="lang-' + S.lang + '"></div><p class="drivenote" id="driveNote"></p>' + footerHtml();
   $('#main').innerHTML = h;
@@ -65,7 +67,9 @@ function render() {
   $('#q').oninput = function (e) { S.q = e.target.value; renderList(); };
   $('#fCat').onchange = function (e) { S.cat = e.target.value; renderList(); };
   $$('#segLang button').forEach(function (b) { b.onclick = function () { S.lang = b.dataset.l; savePrefs(); $$('#segLang button').forEach(function (x) { x.classList.toggle('on', x === b); }); $('#list').className = 'lang-' + S.lang; }; });
-  $('#bXlsx').onclick = exportXlsx; $('#bPdf').onclick = exportPdf; $('#bDrive').onclick = saveDrive;
+  $('#bXlsx').onclick = exportXlsx; $('#bPdf').onclick = exportPdf; $('#bDrive').onclick = saveDrive; $('#bNew').onclick = newIssue;
+  $('#bHide').onclick = function () { S.hideOut = !S.hideOut; savePrefs(); renderList(); };
+  $('#bInc').onclick = function () { S.excluded.clear(); S.hideOut = false; savePrefs(); renderList(); };
   if (hadFocus === 'q') { var q = $('#q'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
 }
 function pairHtml(label, en, cn) {
@@ -92,11 +96,10 @@ function renderList() {
   });
   box.innerHTML = h;
   var ex = items().filter(function (i) { return S.excluded.has(i.id); }).length;
-  $('#cnt').innerHTML = shown + ' of ' + items().length + ' shown' + (ex ? ' · ' + ex + ' left out of export · <a href="#" id="incAll">include all</a> · <a href="#" id="hideOut">' + (S.hideOut ? 'show' : 'hide') + ' unticked</a>' : '');
-  if (ex) {
-    $('#incAll').onclick = function (e) { e.preventDefault(); S.excluded.clear(); savePrefs(); renderList(); };
-    $('#hideOut').onclick = function (e) { e.preventDefault(); S.hideOut = !S.hideOut; savePrefs(); renderList(); };
-  }
+  $('#cnt').textContent = shown + ' of ' + items().length + ' shown' + (ex ? ' · ' + ex + ' unticked (left out of export)' : ' · untick an issue to leave it out of the export');
+  var bh = $('#bHide'), bi = $('#bInc');
+  bh.textContent = (S.hideOut ? 'Show unticked' : 'Hide unticked') + ' (' + ex + ')'; bh.setAttribute('aria-pressed', String(S.hideOut)); bh.disabled = !ex && !S.hideOut;
+  bi.disabled = !ex;
   $$('#list .issue').forEach(function (r) {
     r.onclick = function (e) { if (e.target.closest('.pk')) return; openIssue(r.dataset.id); };
     r.onkeydown = function (e) { if (e.key === 'Enter') openIssue(r.dataset.id); };
