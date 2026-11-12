@@ -30,8 +30,10 @@ function doGet() {
 }
 
 function doPost(e) {
-  var fns = { bootstrap: bootstrap_, listIssues: listIssues_, saveIssue: saveIssue_, deleteIssue: deleteIssue_, saveToDrive: saveToDrive_, ping: ping_ };
-  var OPEN_FNS = { ping: 1 };                    // everything else needs Google sign-in and portal access
+  var fns = { bootstrap: bootstrap_, listIssues: listIssues_, saveIssue: saveIssue_, deleteIssue: deleteIssue_, saveToDrive: saveToDrive_,
+    ping: ping_, health: ping_, getLogo: getLogo_ };
+  // open calls (no sign-in): the control-centre health check uses them, like on the other portals
+  var OPEN_FNS = { ping: 1, health: 1, getLogo: 1 };   // everything else needs Google sign-in and portal access
   var out;
   try {
     var req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
@@ -118,6 +120,8 @@ function log_(action, id, detail) {
 
 /* ---------------- API ---------------- */
 function ping_() { return { ok: true, at: new Date().toISOString() }; }
+/* the logo is the shared file on the main site; kept so health checks that call getLogo get an answer */
+function getLogo_() { return 'https://forwardlogautomation.github.io/logo.png'; }
 
 function bootstrap_() {
   var p = PropertiesService.getScriptProperties();
