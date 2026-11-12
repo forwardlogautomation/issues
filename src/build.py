@@ -17,7 +17,7 @@ loader_start = src.index('<script>window.FL_LOADER=')
 loader_end = src.index('<header class="top">')
 loader = src[loader_start:loader_end]
 loader = re.sub(r'<script>window\.FL_LOADER=\{.*?\}</script>',
-                lambda m: '<script>window.FL_LOADER={"quiet": ["listIssues"], "messages": {"saveIssue": "Saving and translating\\u2026", "saveToDrive": "Saving to Google Drive\\u2026", "deleteIssue": "Deleting\\u2026"}, "app": "Issue Log"}</script>', loader, count=1, flags=re.S)
+                lambda m: '<script>window.FL_LOADER={"quiet": ["listIssues"], "messages": {"saveIssue": "Saving and translating\\u2026", "saveToDrive": "Saving to Google Drive\\u2026", "deleteIssue": "Deleting\\u2026", "polishText": "Polishing with AI\\u2026"}, "app": "Issue Log"}</script>', loader, count=1, flags=re.S)
 
 header = '''<header class="top">
   <a class="logolink" id="logoHome" href="./" aria-label="Home" title="Home"><img class="logo" alt="Forwardlog" src="/logo.png"></a>
