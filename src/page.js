@@ -135,6 +135,31 @@ function nextNo(client) {
   return pre + (w > 1 ? String(n).padStart(w, '0') : n);
 }
 function ta(id, v, ph) { return '<textarea id="' + id + '"' + (ph ? ' placeholder="' + ph + '"' : '') + '>' + esc(v) + '</textarea>'; }
+/* label row with a ✨ Polish button for one text box (AI tidies the wording, Undo puts yours back) */
+function lblPolish(id, label) {
+  return '<div class="lp"><label for="' + id + '">' + label + '</label><span class="pol"><button type="button" class="polb" data-for="' + id + '" title="Let AI tidy up the wording">✨ Polish</button>' +
+    '<button type="button" class="undo hidden" data-undo="' + id + '">Undo</button></span></div>';
+}
+function wirePolish(o) {
+  $$('.polb', o).forEach(function (b) {
+    b.onclick = function () {
+      var id = b.dataset.for, box = $('#' + id, o), m = /^e_(desc|act|rem)_(en|cn)$/.exec(id), txt = box.value.trim();
+      if (!txt) { toast('Type something first, then Polish.', true); return; }
+      var before = box.value;
+      api('polishText', [txt, m[2], m[1]]).then(function (out) {
+        if (box.value !== before) return;                       // the user kept typing: don't overwrite
+        if (out.trim() === txt) { toast('Already reads well. No change.'); return; }
+        box.dataset.orig = before; box.value = out;
+        var u = $('[data-undo="' + id + '"]', o); u.classList.remove('hidden');
+        box.classList.add('polished'); setTimeout(function () { box.classList.remove('polished'); }, 1200);
+      }).catch(fail);
+    };
+  });
+  $$('.undo', o).forEach(function (u) {
+    u.onclick = function () { var box = $('#' + u.dataset.undo, o); if (box.dataset.orig !== undefined) { box.value = box.dataset.orig; delete box.dataset.orig; } u.classList.add('hidden'); };
+  });
+  $$('textarea', o).forEach(function (box) { box.addEventListener('input', function () { var u = $('[data-undo="' + box.id + '"]', o); if (u) u.classList.add('hidden'); delete box.dataset.orig; }); });
+}
 function showEditor(it) {
   var cl = clientList(), cur = it ? it.client : (S.clients.size === 1 ? Array.from(S.clients)[0] : (cl[0] && cl[0].client) || '__new');
   var catOpts = Array.from(new Set(Object.keys(CAT_CN).concat(items().map(function (i) { return i.cat_en; }).filter(Boolean)))).sort();
@@ -147,9 +172,9 @@ function showEditor(it) {
     '<div class="g4' + (cur === '__new' && !it ? '' : ' hidden') + '" id="newClient"><div><label for="eNewClient">New client name</label><input id="eNewClient"></div><div><label for="eProject">Project</label><input id="eProject"></div><div><label for="eProjectCn">项目</label><input id="eProjectCn"></div><div></div></div>' +
     '<div class="g4"><div><label for="eStatus">Status 状态</label><select id="eStatus"><option value="OPEN"' + (!it || it.status !== 'CLOSED' ? ' selected' : '') + '>OPEN 未结</option><option value="CLOSED"' + (it && it.status === 'CLOSED' ? ' selected' : '') + '>CLOSED 已结</option></select></div>' +
     '<div><label for="eRec">Date recorded 记录日期</label><input id="eRec" type="date" value="' + esc(it ? str(it.recorded_at).slice(0, 10) : today()) + '"></div></div>' +
-    '<div class="note">Write in English or 中文. The other language is filled in automatically when you save. 只需填写一种语言，保存时自动翻译另一种。</div>' +
+    '<div class="note">Write in English or 中文. The other language is filled in automatically when you save. 只需填写一种语言，保存时自动翻译另一种。 Tap <b>✨ Polish</b> on a box to let AI tidy up the wording; <b>Undo</b> puts yours back.</div>' +
     [['Description 描述', 'desc'], ['Action plan 行动计划', 'act'], ['Remarks 备注', 'rem']].map(function (p) {
-      return '<div class="ph">' + p[0] + '</div><div class="g2"><div><label for="e_' + p[1] + '_en">English</label>' + ta('e_' + p[1] + '_en', it ? it[p[1] + '_en'] : '') + '</div><div><label for="e_' + p[1] + '_cn">中文</label>' + ta('e_' + p[1] + '_cn', it ? it[p[1] + '_cn'] : '') + '</div></div>';
+      return '<div class="ph">' + p[0] + '</div><div class="g2"><div>' + lblPolish('e_' + p[1] + '_en', 'English') + ta('e_' + p[1] + '_en', it ? it[p[1] + '_en'] : '') + '</div><div>' + lblPolish('e_' + p[1] + '_cn', '中文') + ta('e_' + p[1] + '_cn', it ? it[p[1] + '_cn'] : '') + '</div></div>';
     }).join('') +
     '<div class="btns"><button class="btn sec" type="button" id="eCancel">Cancel</button><button class="btn" type="button" id="eSave">Save</button></div>' +
     (it && isAdmin() ? '<div class="del"><button class="btn sm bad" type="button" id="eDel">Delete</button><span id="delAsk" class="hidden">Delete ' + esc(it.no) + ' for everyone? <button class="btn sm bad" type="button" id="eDelYes">Yes, delete</button> <button class="btn sm sec" type="button" id="eDelNo">Keep</button></span></div>' : '') +
@@ -157,6 +182,7 @@ function showEditor(it) {
   var o = openSheet(html, function () { if (S.editor === o) S.editor = null; if (!o.silent) goList(); });
   o.querySelector('.sheet').classList.add('ed');
   S.editor = o;
+  wirePolish(o);
   var sel = $('#eClient', o);
   sel.onchange = function () { var v = sel.value; $('#newClient', o).classList.toggle('hidden', v !== '__new'); $('#eNo', o).value = v === '__new' ? '' : nextNo(v); };
   $('#eCat', o).oninput = function () { var cn = CAT_CN[this.value.trim()]; if (cn) $('#eCatCn', o).value = cn; };

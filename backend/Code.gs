@@ -30,7 +30,7 @@ function doGet() {
 }
 
 function doPost(e) {
-  var fns = { bootstrap: bootstrap_, listIssues: listIssues_, saveIssue: saveIssue_, deleteIssue: deleteIssue_, saveToDrive: saveToDrive_,
+  var fns = { bootstrap: bootstrap_, listIssues: listIssues_, saveIssue: saveIssue_, deleteIssue: deleteIssue_, saveToDrive: saveToDrive_, polishText: polishText_,
     ping: ping_, health: ping_, getLogo: getLogo_ };
   // open calls (no sign-in): the control-centre health check uses them, like on the other portals
   var OPEN_FNS = { ping: 1, health: 1, getLogo: 1 };   // everything else needs Google sign-in and portal access
@@ -190,6 +190,64 @@ function deleteIssue_(no) {
     log_('delete', no, cur.desc_en || cur.desc_cn);
     return true;
   } finally { lock.releaseLock(); }
+}
+
+/* ---------------- AI polish (Claude API) ----------------
+   Script property ANTHROPIC_API_KEY holds the key (console.anthropic.com). The key never leaves Apps Script. */
+var CLAUDE_MODEL = 'claude-opus-5-5';
+var POLISH_LIMIT_PER_HOUR = 60;   // per person, keeps the bill predictable
+var FIELD_NAMES = { desc: 'issue description', act: 'action plan', rem: 'remarks' };
+
+function polishText_(text, lang, field) {
+  text = String(text || '').trim();
+  if (!text) throw new Error('Nothing to polish yet. Type something first.');
+  if (text.length > 4000) throw new Error('That text is too long to polish in one go (max 4,000 characters).');
+  var key = PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY');
+  if (!key) throw new Error('AI polish is not set up yet (script property ANTHROPIC_API_KEY is missing). Ask an admin.');
+  var cache = CacheService.getScriptCache(), ck = 'pol_' + AUTH_EMAIL + '_' + Utilities.formatDate(new Date(), 'Asia/Kuala_Lumpur', 'yyyyMMddHH');
+  var used = Number(cache.get(ck) || 0);
+  if (used >= POLISH_LIMIT_PER_HOUR) throw new Error('You have used AI polish ' + used + ' times this hour. Try again later.');
+  cache.put(ck, String(used + 1), 3700);
+
+  var cn = lang === 'cn';
+  var system = 'You polish entries in the issue log of Forwardlog Automation, a Malaysian company that installs warehouse sorting automation ' +
+    '(wheel sorters, T-sort and 3D sorters, AIRROB, automatic putwalls, conveyors, scanners, label printers, WMS/WCS integration). ' +
+    'Engineers type quickly on site; you make their text clear, correct and professional.\n' +
+    'Rules:\n' +
+    '- Keep the meaning, every fact, number, date, time, code, model name, IP address, client name and line break. Do not add facts, causes, promises or advice.\n' +
+    '- Fix grammar, spelling and word order; make sentences short and plain. Keep lists as lists.\n' +
+    (cn ? '- Write in Simplified Chinese (简体中文), concise professional engineering wording as used on site. Keep English model names and codes as they are.\n'
+        : '- Write in clear professional English (British/Malaysian spelling is fine).\n') +
+    '- If the text is already good, return it unchanged.\n' +
+    '- Reply with only the polished text: no quotes, no heading, no explanation.';
+  var body = {
+    model: CLAUDE_MODEL,
+    max_tokens: 4000,
+    output_config: { effort: 'low' },          // short rewrite: low effort is plenty and fastest
+    fallbacks: 'default',                       // if a safety check declines, the API retries on a fallback model
+    system: system,
+    messages: [{ role: 'user', content: 'Field: ' + (FIELD_NAMES[field] || 'text') + '\n\n<text>\n' + text + '\n</text>' }]
+  };
+  var r = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    headers: { 'x-api-key': key, 'anthropic-version': '2026-10-21', 'anthropic-beta': 'server-side-fallback-2026-07-01' },
+    payload: JSON.stringify(body)
+  });
+  var code = r.getResponseCode(), j = {};
+  try { j = JSON.parse(r.getContentText()); } catch (e) { }
+  if (code !== 200) {
+    var msg = (j.error && j.error.message) || ('HTTP ' + code);
+    if (code === 401) msg = 'the API key is not valid';
+    if (code === 429 || code === 529) msg = 'the AI service is busy, try again in a minute';
+    throw new Error('AI polish failed: ' + msg);
+  }
+  if (j.stop_reason === 'refusal') throw new Error('The AI declined to polish this text. It was kept as you typed it.');
+  var out = (j.content || []).filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join('').trim();
+  out = out.replace(/^<text>\s*/, '').replace(/\s*<\/text>$/, '').trim();
+  if (!out) throw new Error('The AI returned nothing. Your text was kept.');
+  if (j.stop_reason === 'max_tokens') throw new Error('The polished text was cut off. Your text was kept; try a shorter piece.');
+  log_('polish', field || '', (lang || '') + ' ' + text.length + ' chars');
+  return out;
 }
 
 /* Excel copy in the Drive folder: one file, replaced each time */

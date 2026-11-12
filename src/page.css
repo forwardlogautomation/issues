@@ -85,3 +85,12 @@ main.iss{max-width:1180px;margin:0 auto;padding:18px 14px 120px}
 }
 .exbar .sep{width:1px;align-self:stretch;background:var(--edge);margin:0 2px}
 .exbar .btn.sm[aria-pressed=true]{background:var(--fl);color:#fff}
+
+/* ✨ Polish buttons on the editor's text boxes */
+.ed .lp{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
+.ed .lp label{margin-bottom:5px}
+.ed .pol{display:flex;gap:6px;margin-bottom:4px}
+.ed .polb,.ed .undo{border:1.5px solid var(--edge);background:#fff;border-radius:999px;padding:4px 10px;font:inherit;font-size:12px;font-weight:700;color:var(--fl-dk);cursor:pointer;min-height:30px}
+.ed .polb:hover{border-color:var(--fl);background:var(--panel)}
+.ed .undo{color:var(--grey)}
+.ed textarea.polished{border-color:var(--fl);box-shadow:0 0 0 3px rgba(95,122,97,.25);transition:box-shadow .4s}
